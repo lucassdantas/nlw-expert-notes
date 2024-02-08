@@ -8,11 +8,14 @@ import {toast} from 'sonner'
 interface NewNoteCardProps {
     onNoteCreated: (content:string) => void
 }
+let speechRecognition:SpeechRecognition | null = null
 
 export function NewNoteCard({onNoteCreated}: NewNoteCardProps) {
     const [shouldShowOnBoarding, setShouldShowOnBoarding] = useState(true)
     const [content, setContent] = useState('')
     const [isRecording, setIsRecording] = useState(false)
+
+
 
     const handleStartEditor = () => setShouldShowOnBoarding(false)
     const handleContentChange = (e:ChangeEvent<HTMLTextAreaElement>) => {
@@ -31,11 +34,45 @@ export function NewNoteCard({onNoteCreated}: NewNoteCardProps) {
         setShouldShowOnBoarding(true)
     }
     const handleStartRecording = () => {
+        
+        const isSPeechRecognitionAPIAvailable = 'SpeechRecognition' in window 
+        || 'webkitSpeechRecognition' in window
+        
+        if(!isSPeechRecognitionAPIAvailable) return alert('Infelizmente seu navegador não suporta a API de gravação de áudio')
+        
         setIsRecording(true)
+        setShouldShowOnBoarding(false)
+        const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
+
+        speechRecognition = new SpeechRecognitionAPI() 
+
+        speechRecognition.lang = 'pt-BR'
+        speechRecognition.continuous = true
+        speechRecognition.maxAlternatives = 1
+        speechRecognition.interimResults = true 
+
+        speechRecognition.onresult = (event) => {
+            const transcription = Array.from(event.results).reduce((text, result) => {
+                return text.concat(result[0].transcript)
+            }, '')
+
+            setContent(transcription)
+        }
+
+        speechRecognition.onerror = (event) => {
+            console.error(event)
+        }
+
+        speechRecognition.start()
+
     }
 
+
     const handleStopRecording = () => {
-        setIsRecording(false)
+        if(speechRecognition != null) {
+            speechRecognition.stop()
+            setIsRecording(false)
+        }
     }
     return(
         <Dialog.Root>
